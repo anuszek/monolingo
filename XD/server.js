@@ -1,6 +1,8 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const cors = require("cors");
+const multer = require("multer");
+const { createWorker } = require("tesseract.js");
 require("dotenv").config();
 
 const app = express();
@@ -131,6 +133,70 @@ app.post("/api/agent-tts", async (req, res) => {
     res.setHeader("Content-Type", "audio/mpeg");
     // streamujemy odpowiedź bez parsowania
     ttsResp.body.pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// OCR endpoint: przyjmuje obraz (multipart/form-data field 'image') i zwraca rozpoznany tekst
+const upload = multer({ storage: multer.memoryStorage() });
+app.post("/api/ocr", upload.single("image"), async (req, res) => {
+  if (!req.file)
+    return res.status(400).json({ error: "Brak pliku (pole image)" });
+  try {
+    const worker = createWorker();
+    await worker.load();
+    await worker.loadLanguage("eng+pol");
+    await worker.initialize("eng+pol");
+    // recognize from buffer
+    const {
+      data: { text },
+    } = await worker.recognize(req.file.buffer);
+    await worker.terminate();
+
+    // jeśli klient dołączył flagę sendToAgent=true, od razu prześlij rozpoznany tekst do chat i zwróć także odpowiedź
+    const { sendToAgent } = req.body || {};
+    if (sendToAgent === "true" || sendToAgent === true) {
+      // forward to chat completions (reuse logic from /api/agent)
+      const message = text;
+      const chatPayload = {
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an English-language tutor for Polish speakers. Respond concisely.",
+          },
+          { role: "user", content: message },
+        ],
+      };
+      const chatResp = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENAI_KEY}`,
+          },
+          body: JSON.stringify(chatPayload),
+        }
+      );
+      if (!chatResp.ok) {
+        const t = await chatResp.text();
+        return res
+          .status(502)
+          .json({ error: "Błąd od OpenAI (chat)", detail: t });
+      }
+      const chatData = await chatResp.json();
+      const reply =
+        chatData.choices &&
+        chatData.choices[0] &&
+        chatData.choices[0].message &&
+        chatData.choices[0].message.content;
+      return res.json({ text, reply });
+    }
+
+    res.json({ text });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

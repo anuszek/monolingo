@@ -53,6 +53,15 @@
         <option value="en-US">English (en-US)</option>
         <option value="pl-PL">Polski (pl-PL)</option>
       </select>
+      <div style="margin-top: 12px; text-align: left">
+        <label for="imageInput">Wstaw zdjęcie (OCR):</label>
+        <input id="imageInput" type="file" accept="image/*" />
+        <label
+          ><input id="forwardToAgent" type="checkbox" /> Wyślij rozpoznany tekst
+          do agenta</label
+        >
+        <button id="uploadBtn">Prześlij obraz</button>
+      </div>
       <div id="transcript"></div>
     </div>
 
@@ -166,6 +175,56 @@
           recognizing = false;
           micBtn.classList.remove("recording");
           micBtn.textContent = "🎤 Start";
+        }
+      });
+
+      // OCR upload
+      const uploadBtn = document.getElementById("uploadBtn");
+      uploadBtn.addEventListener("click", async () => {
+        const fileEl = document.getElementById("imageInput");
+        if (!fileEl.files || fileEl.files.length === 0)
+          return alert("Wybierz obraz");
+        const file = fileEl.files[0];
+        const form = new FormData();
+        form.append("image", file);
+        // opcjonalne forwardowanie do agenta
+        const forward = document.getElementById("forwardToAgent").checked;
+        if (forward) form.append("sendToAgent", "true");
+
+        transcriptEl.textContent = "Wysyłam obraz do OCR...";
+        try {
+          const resp = await fetch("/XD/api/ocr", {
+            method: "POST",
+            body: form,
+          });
+          if (!resp.ok) {
+            const t = await resp.text();
+            transcriptEl.textContent = "Błąd OCR: " + t;
+            return;
+          }
+          const data = await resp.json();
+          transcriptEl.textContent =
+            "Rozpoznany tekst:\n" + (data.text || "Brak");
+          if (data.reply) {
+            transcriptEl.textContent += "\nAI: " + data.reply;
+            // jeśli serwer zwrócił reply i chcemy odtworzyć audio, wywołaj /api/agent-tts
+            const practiceLang =
+              document.getElementById("practiceLang").value || "en-US";
+            const ttsResp = await fetch("/XD/api/agent-tts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: data.text, lang: practiceLang }),
+            });
+            if (ttsResp.ok) {
+              const blob = await ttsResp.blob();
+              const url = URL.createObjectURL(blob);
+              const audio = new Audio(url);
+              audio.play();
+              audio.addEventListener("ended", () => URL.revokeObjectURL(url));
+            }
+          }
+        } catch (err) {
+          transcriptEl.textContent = "Błąd: " + err.message;
         }
       });
     </script>
