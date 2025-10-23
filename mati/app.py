@@ -17,7 +17,7 @@ def home():
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    prompt = data.get("prompt", "")
+    prompt = data.get("prompt", "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")
 
     if not prompt.strip():
         return jsonify({"error": "Brak treści w wiadomości"}), 400

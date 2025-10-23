@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Monolingo — Voice Agent</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background: #f6f9fc;
+      }
+      .card {
+        background: #fff;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        width: 360px;
+        text-align: center;
+      }
+      button {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        padding: 12px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      button.recording {
+        background: #ef4444;
+      }
+      #transcript {
+        margin-top: 12px;
+        min-height: 40px;
+        color: #111;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Rozmowa z AI</h2>
+      <p>
+        Naciśnij mikrofon i mów. Wynik zostanie wysłany do agenta, a odpowiedź
+        odtworzona.
+      </p>
+      <button id="micBtn" title="Naciśnij, aby mówić">🎤 Start</button>
+      <label for="practiceLang">Język ćwiczeń:</label>
+      <select id="practiceLang">
+        <option value="en-US">English (en-US)</option>
+        <option value="pl-PL">Polski (pl-PL)</option>
+      </select>
+      <div id="transcript"></div>
+    </div>
+
+    <script>
+      const micBtn = document.getElementById("micBtn");
+      const transcriptEl = document.getElementById("transcript");
+      let recognizing = false;
+      let recognition;
+      let selectedVoice = null;
+
+      if (
+        !("webkitSpeechRecognition" in window) &&
+        !("SpeechRecognition" in window)
+      ) {
+        transcriptEl.textContent =
+          "Twoja przeglądarka nie wspiera Web Speech API. Użyj Chrome lub Edge.";
+        micBtn.disabled = true;
+      } else {
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = "pl-PL";
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.addEventListener("result", async (e) => {
+          const text = Array.from(e.results)
+            .map((r) => r[0].transcript)
+            .join("");
+          transcriptEl.textContent = "Rozpoznano: " + text;
+
+          // wyślij do agenta (TTS po stronie serwera)
+          try {
+            // wysyłamy tekst do /api/agent-tts i otrzymamy audio (mp3)
+            const practiceLang =
+              document.getElementById("practiceLang").value || "en-US";
+            const resp = await fetch("/XD/api/agent-tts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: text, lang: practiceLang }),
+            });
+
+            if (!resp.ok) {
+              const errText = await resp.text();
+              transcriptEl.textContent += "\nBłąd TTS: " + errText;
+              return;
+            }
+
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.autoplay = true;
+            transcriptEl.textContent += "\nOdtwarzam odpowiedź...";
+
+            audio.addEventListener("ended", () => {
+              URL.revokeObjectURL(url);
+              // wznowienie rozpoznawania, jeśli użytkownik był w trybie nagrywania
+              if (recognizing) {
+                try {
+                  recognition.start();
+                  transcriptEl.textContent = "Słucham...";
+                } catch (e) {}
+              }
+            });
+          } catch (err) {
+            transcriptEl.textContent += "\nBłąd połączenia: " + err.message;
+          }
+        });
+
+        // przygotuj listę głosów i wybierz polski głos o nazwie zawierającej 'Iwona' jeśli dostępny
+        function prepareVoices() {
+          const voices = speechSynthesis.getVoices() || [];
+          // preferuj głos zawierający 'Iwona', inaczej polskie głosy
+          selectedVoice =
+            voices.find((v) => /iwona/i.test(v.name)) ||
+            voices.find(
+              (v) =>
+                /pol(ish|ski)/i.test(v.lang) || /pol(ish|ski)/i.test(v.name)
+            );
+        }
+
+        // niektóre przeglądarki ładują głosy asynchronicznie
+        prepareVoices();
+        if ("onvoiceschanged" in speechSynthesis) {
+          speechSynthesis.onvoiceschanged = prepareVoices;
+        }
+
+        recognition.addEventListener("end", () => {
+          if (recognizing) {
+            recognizing = false;
+            micBtn.classList.remove("recording");
+            micBtn.textContent = "🎤 Start";
+          }
+        });
+
+        recognition.addEventListener("error", (e) => {
+          transcriptEl.textContent = "Błąd rozpoznawania: " + e.error;
+        });
+      }
+
+      micBtn.addEventListener("click", () => {
+        if (!recognition) return;
+        if (!recognizing) {
+          recognition.start();
+          recognizing = true;
+          micBtn.classList.add("recording");
+          micBtn.textContent = "⏹ Stop";
+          transcriptEl.textContent = "Słucham...";
+        } else {
+          recognition.stop();
+          recognizing = false;
+          micBtn.classList.remove("recording");
+          micBtn.textContent = "🎤 Start";
+        }
+      });
+    </script>
+  </body>
+</html>
