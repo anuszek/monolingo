@@ -37,3 +37,51 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
     throw error;
   }
 }
+
+/**
+ * Request TTS for a text message. Returns a Blob (audio/mpeg).
+ */
+export async function agentTts(message: string, lang = "en-US"): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/api/agent-tts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, lang }),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "TTS request failed");
+  }
+  return await response.blob();
+}
+
+/**
+ * Send image + optional message to combined OCR+chat+TTS endpoint.
+ * Expects FormData with field 'file', optional 'message' and 'lang'.
+ * Returns JSON { reply, audio_b64, ocr_text }.
+ */
+export async function agentOcrTts(form: FormData): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/agent-ocr-tts`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "OCR+TTS request failed");
+  }
+  return await response.json();
+}
+
+/**
+ * OCR-only endpoint: expects FormData with 'file' field.
+ */
+export async function ocr(form: FormData): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/ocr`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "OCR request failed");
+  }
+  return await response.json();
+}

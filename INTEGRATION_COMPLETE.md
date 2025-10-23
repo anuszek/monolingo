@@ -183,7 +183,7 @@ Response:
 
 You can now:
 
-1. Add voice recognition (integrate XD/ server)
+1. Add voice recognition (server-side TTS & OCR integrated into `mati/app.py`) — DONE
 2. Add image upload functionality
 3. Implement conversation persistence (database)
 4. Add authentication

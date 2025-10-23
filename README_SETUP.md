@@ -8,7 +8,6 @@ This app is an AI-powered English language tutor for Polish speakers, built with
 monolingo/
 ├── src/                  # React frontend (TypeScript + Vite + MUI)
 ├── mati/                 # Flask backend (Python)
-├── XD/                   # Node.js voice server (optional)
 └── ...
 ```
 
@@ -17,6 +16,7 @@ monolingo/
 - **Node.js** (v18 or higher) - for frontend
 - **Python** (3.8 or higher) - for backend
 - **OpenAI API Key** - get one from https://platform.openai.com/
+- **Tesseract OCR** (for image OCR features) - install from https://github.com/tesseract-ocr/tesseract and make sure the tesseract executable is on your PATH
 
 ## Setup Instructions
 
@@ -32,12 +32,13 @@ python -m venv venv
 # Activate the virtual environment
 .\venv\Scripts\Activate.ps1
 
-# Install dependencies
+# Install dependencies (requirements file is in the mati/ folder)
 pip install -r requirements.txt
 
-# Create .env file with your OpenAI API key
-# Copy .env.example to .env and add your key
-echo "OPENAI_API_KEY=your_api_key_here" > .env
+# Create a .env file with your OpenAI API key. In PowerShell you can run:
+# Set-Content -Path .env -Value 'OPENAI_API_KEY=your_api_key_here'
+# Or copy the example and edit it manually:
+# copy .env.example .env
 
 # Run the Flask server
 python app.py
@@ -55,7 +56,7 @@ cd ..
 npm install
 
 # Create .env file (optional - for custom API URL)
-# Copy .env.example to .env if needed
+# copy .env.example .env and edit VITE_API_URL if needed
 
 # Run the development server
 npm run dev
@@ -118,18 +119,14 @@ OPENAI_API_KEY=your_openai_api_key_here
 - Clear browser cache and reload
 - Check browser console for errors
 
-## Optional: Voice Features
+## Optional: Voice & OCR features
 
-The `XD/` folder contains a Node.js server with voice recognition and TTS features. To use it:
+Voice and OCR functionality are now integrated into the main Flask backend in `mati/`.
 
-```powershell
-cd XD
-npm install
-# Add OPENAI_API_KEY to XD/.env
-npm start
-```
+- OCR (image -> text) requires Tesseract (see prerequisites above).
+- Server-side TTS (agent -> speech) and OCR endpoints are available under `mati/app.py`.
 
-Then visit `http://localhost:5174/voice.html`
+If you still have an `XD/` folder from earlier experiments it is deprecated — the same capabilities were merged into `mati/` and you do not need to run `XD` separately.
 
 ## Technologies Used
 

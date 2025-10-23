@@ -18,7 +18,6 @@ dist-ssr
 .env.*.local
 mati/.env
 mati/.env.local
-XD/.env
 
 # Python
 __pycache__/

@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { useConversationHistory } from "./hooks/chat";
 import { useChat } from "./hooks/useChat";
+import { useVoice } from "./hooks/useVoice";
 
 function App() {
   const [inputValue, setInputValue] = useState("");
@@ -58,6 +59,8 @@ function App() {
       handleSendMessage();
     }
   };
+
+  const { status, startListening, sendImageToAgent } = useVoice();
 
   return (
     <>
@@ -174,11 +177,30 @@ function App() {
             />
             <Box className="input-actions">
               <IconButton className="icon-button" aria-label="voice input">
-                <MicIcon />
+                <MicIcon onClick={() => startListening()} />
               </IconButton>
               <IconButton className="icon-button" aria-label="attach file">
-                <ImageIcon />
+                <ImageIcon
+                  onClick={() => {
+                    // trigger file input elsewhere or open file picker
+                    const el = document.createElement("input");
+                    el.type = "file";
+                    el.accept = "image/*";
+                    el.onchange = (ev: any) => {
+                      const f = el.files && el.files[0];
+                      if (f) sendImageToAgent(f);
+                    };
+                    el.click();
+                  }}
+                />
               </IconButton>
+              <Box
+                sx={{ display: "flex", alignItems: "center", marginLeft: 1 }}
+              >
+                <Typography variant="caption">
+                  {status === "idle" ? "" : status}
+                </Typography>
+              </Box>
               <IconButton
                 className="icon-button"
                 aria-label="send message"
