@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 # Wczytanie klucza API z pliku .env
 load_dotenv()
-client = OpenAI("a")
                 
 app = Flask(__name__)
 CORS(app)  # Pozwala na połączenie z frontendem (np. Reactem lub HTML/JS)
