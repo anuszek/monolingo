@@ -30,7 +30,6 @@ function App() {
     addConversationItem,
     activeIndex,
     selectConversation,
-    getSelectedMessageIndex,
   } = useConversationHistory();
   const chatAreaRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +60,7 @@ function App() {
     }
   };
 
-  const { status, startListening, sendImageToAgent } = useVoice();
+  const { status, sendImageToAgent } = useVoice();
 
   return (
     <>
@@ -87,12 +86,7 @@ function App() {
                   className={`conversation-item ${
                     index === activeIndex ? "active" : ""
                   }`}
-                  onClick={() => {
-                    const messageIndex = messages.findIndex(
-                      (msg) => msg.role === "user" && msg.content === item
-                    );
-                    selectConversation(index, messageIndex);
-                  }}
+                  onClick={() => selectConversation(index)}
                 >
                   <ListItemText primary={item} />
                 </ListItemButton>
