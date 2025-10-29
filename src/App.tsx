@@ -30,6 +30,7 @@ function App() {
     addConversationItem,
     activeIndex,
     selectConversation,
+    getSelectedMessageIndex,
   } = useConversationHistory();
   const chatAreaRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +60,19 @@ function App() {
       handleSendMessage();
     }
   };
-
+  useEffect(() => {
+    const selectedIndex = getSelectedMessageIndex();
+    if (selectedIndex !== null) {
+      const messageElements =
+        chatAreaRef.current?.getElementsByClassName("message-paper");
+      if (messageElements && messageElements[selectedIndex]) {
+        messageElements[selectedIndex].scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }
+  }, [activeIndex]);
   const { status, startListening, sendImageToAgent } = useVoice();
 
   return (
@@ -86,7 +99,12 @@ function App() {
                   className={`conversation-item ${
                     index === activeIndex ? "active" : ""
                   }`}
-                  onClick={() => selectConversation(index)}
+                  onClick={() => {
+                    const messageIndex = messages.findIndex(
+                      (msg) => msg.role === "user" && msg.content === item
+                    );
+                    selectConversation(index, messageIndex);
+                  }}
                 >
                   <ListItemText primary={item} />
                 </ListItemButton>
@@ -118,6 +136,7 @@ function App() {
               messages.map((msg, index) => (
                 <Paper
                   key={index}
+                  className="message-paper"
                   elevation={1}
                   sx={{
                     padding: 2,
@@ -144,21 +163,6 @@ function App() {
                   </Typography>
                 </Paper>
               ))
-            )}
-            {isLoading && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  padding: 2,
-                }}
-              >
-                <CircularProgress size={20} />
-                <Typography variant="body2" color="textSecondary">
-                  Thinking...
-                </Typography>
-              </Box>
             )}
           </Box>
           <Box className="input-container">
