@@ -1,61 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { agentTts, agentOcrTts } from "../services/api";
+import { useRef, useState } from "react";
+import { agentOcrTts } from "../services/api";
 
 export function useVoice() {
+  // status used only for UI feedback (idle/thinking/speaking/error)
   const [status, setStatus] = useState<
-    "idle" | "listening" | "thinking" | "speaking" | "error"
+    "idle" | "thinking" | "speaking" | "error"
   >("idle");
   const audioQueue = useRef<Blob[]>([]);
   const isPlaying = useRef(false);
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    // setup SpeechRecognition if available
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const r = new SpeechRecognition();
-      r.lang = "pl-PL";
-      r.interimResults = false;
-      r.maxAlternatives = 1;
-      r.onresult = async (e: any) => {
-        const text = Array.from(e.results)
-          .map((r: any) => r[0].transcript)
-          .join("");
-        // send to TTS
-        setStatus("thinking");
-        try {
-          const blob = await agentTts(text, "en-US");
-          enqueueAudio(blob);
-        } catch (err) {
-          setStatus("error");
-        }
-      };
-      r.onend = () => {
-        // keep idle; UI controls will restart if needed
-      };
-      recognitionRef.current = r;
-    }
-  }, []);
-
-  function startListening() {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-        setStatus("listening");
-      } catch (e) {}
-    }
-  }
-
-  function stopListening() {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-        setStatus("idle");
-      } catch (e) {}
-    }
-  }
 
   function enqueueAudio(blob: Blob) {
     audioQueue.current.push(blob);
@@ -79,6 +31,7 @@ export function useVoice() {
       playNext();
     };
     a.play().catch((e) => {
+      console.error("audio play error", e);
       setStatus("error");
       isPlaying.current = false;
     });
@@ -98,10 +51,16 @@ export function useVoice() {
         const blob = new Blob([bytes], { type: "audio/mpeg" });
         enqueueAudio(blob);
       }
+      return res;
     } catch (err) {
+      console.error("agentOcrTts error", err);
       setStatus("error");
+      throw err;
     }
   }
 
-  return { status, startListening, stopListening, sendImageToAgent };
+  return {
+    status,
+    sendImageToAgent,
+  };
 }

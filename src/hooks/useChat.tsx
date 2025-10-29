@@ -51,6 +51,10 @@ export const useChat = () => {
     }
   }, []);
 
+  const addRawMessage = useCallback((message: Message) => {
+    setMessages((prev) => [...prev, message]);
+  }, []);
+
   const clearChat = useCallback(() => {
     setMessages([]);
     setError(null);
@@ -62,5 +66,6 @@ export const useChat = () => {
     error,
     addMessage,
     clearChat,
+    addRawMessage,
   };
 };

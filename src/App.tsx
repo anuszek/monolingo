@@ -24,7 +24,7 @@ import { useVoice } from "./hooks/useVoice";
 
 function App() {
   const [inputValue, setInputValue] = useState("");
-  const { messages, isLoading, addMessage } = useChat();
+  const { messages, isLoading, addMessage, addRawMessage } = useChat();
   const {
     conversationItems,
     addConversationItem,
@@ -60,19 +60,7 @@ function App() {
       handleSendMessage();
     }
   };
-  useEffect(() => {
-    const selectedIndex = getSelectedMessageIndex();
-    if (selectedIndex !== null) {
-      const messageElements =
-        chatAreaRef.current?.getElementsByClassName("message-paper");
-      if (messageElements && messageElements[selectedIndex]) {
-        messageElements[selectedIndex].scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
-    }
-  }, [activeIndex]);
+
   const { status, startListening, sendImageToAgent } = useVoice();
 
   return (
@@ -158,6 +146,15 @@ function App() {
                   >
                     {msg.role === "user" ? "You" : "Monolingo"}
                   </Typography>
+                  {msg.imageUrl && (
+                    <Box sx={{ marginBottom: 1 }}>
+                      <img
+                        src={msg.imageUrl}
+                        alt="uploaded"
+                        style={{ maxWidth: "100%", borderRadius: 8 }}
+                      />
+                    </Box>
+                  )}
                   <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
                     {msg.content}
                   </Typography>
@@ -180,8 +177,19 @@ function App() {
               fullWidth
             />
             <Box className="input-actions">
-              <IconButton className="icon-button" aria-label="voice input">
-                <MicIcon onClick={() => startListening()} />
+              <IconButton
+                className="icon-button"
+                aria-label="voice input"
+                onClick={() => {
+                  console.error("Microphone clicked but disabled");
+                  // Simple user-facing feedback that mic is disabled
+                  alert(
+                    "Microphone is disabled in this build. Use text input or image upload instead."
+                  );
+                }}
+                title="Microphone (disabled)"
+              >
+                <MicIcon />
               </IconButton>
               <IconButton className="icon-button" aria-label="attach file">
                 <ImageIcon
@@ -190,9 +198,41 @@ function App() {
                     const el = document.createElement("input");
                     el.type = "file";
                     el.accept = "image/*";
-                    el.onchange = (ev: any) => {
+                    el.onchange = async () => {
                       const f = el.files && el.files[0];
-                      if (f) sendImageToAgent(f);
+                      if (f) {
+                        // create a preview URL and immediately show a user image message
+                        const preview = URL.createObjectURL(f);
+                        addRawMessage({
+                          role: "user",
+                          content: "[Image sent]",
+                          timestamp: new Date(),
+                          imageUrl: preview,
+                        });
+
+                        try {
+                          const res = await sendImageToAgent(f);
+                          // Add assistant reply to chat (include OCR text if present)
+                          const assistantContent = res.ocr_text
+                            ? `${res.reply}\n\n[OCR text]:\n${res.ocr_text}`
+                            : res.reply;
+                          addRawMessage({
+                            role: "assistant",
+                            content: assistantContent,
+                            timestamp: new Date(),
+                          });
+                          // Release preview object URL
+                          URL.revokeObjectURL(preview);
+                        } catch (e) {
+                          addRawMessage({
+                            role: "assistant",
+                            content:
+                              "Sorry, there was a problem processing the image.",
+                            timestamp: new Date(),
+                          });
+                          URL.revokeObjectURL(preview);
+                        }
+                      }
                     };
                     el.click();
                   }}
