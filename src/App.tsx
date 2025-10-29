@@ -39,7 +39,19 @@ function App() {
       chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
     }
   }, [messages]);
-
+  useEffect(() => {
+    const selectedIndex = activeIndex; // Get the active index
+    if (selectedIndex !== null && chatAreaRef.current) {
+      const messageElements =
+        chatAreaRef.current.getElementsByClassName("message-paper");
+      if (messageElements[selectedIndex]) {
+        messageElements[selectedIndex].scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }
+  }, [activeIndex]); // Add activeIndex to the dependency array
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
@@ -86,7 +98,12 @@ function App() {
                   className={`conversation-item ${
                     index === activeIndex ? "active" : ""
                   }`}
-                  onClick={() => selectConversation(index)}
+                  onClick={() => {
+                    const messageIndex = messages.findIndex(
+                      (msg) => msg.content === conversationItems[index]
+                    );
+                    selectConversation(index, messageIndex); // Pass the message index
+                  }}
                 >
                   <ListItemText primary={item} />
                 </ListItemButton>
