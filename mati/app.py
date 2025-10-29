@@ -44,7 +44,7 @@ def get_ai_response(text_prompt, lang='en-US'):
 
     response = client.chat.completions.create(
         # Wybieramy jeden z darmowych, szybkich modeli Groq
-        model="llama3-8b-8192", 
+        model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": text_prompt}
